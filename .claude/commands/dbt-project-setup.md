@@ -151,6 +151,21 @@ Check if a `dbt-project.yaml` file exists in the current directory.
 | `github_installation_id` | GitHub App installation ID | `103071669` |
 | `dbt_version` | dbt version | `versionless` |
 
+##### Auto-discovering `github_installation_id`
+
+Do not ask the user for this value. Discover it automatically by calling the dbt Cloud API once you have `dbt_account_id`, `dbt_host_url`, and `dbt_token`:
+
+```bash
+curl -s \
+  -H "Authorization: Token $TF_VAR_dbt_token" \
+  "{dbt_host_url}/v3/accounts/{dbt_account_id}/github/installations/" \
+  | jq '.data[] | {id: .id, login: .account.login}'
+```
+
+Match the result whose `login` corresponds to the GitHub organisation or user that owns the repo. Use that `id` as `github_installation_id`.
+
+If the endpoint returns an empty list or errors, fall back to asking the user.
+
 #### Snowflake
 | Variable | Description | Example |
 |---|---|---|
