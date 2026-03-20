@@ -29,36 +29,27 @@ Before running `/dbt-project-setup`, make sure you have the following:
 
 ### Region & URL reference
 
-> ⚠️ **Terraform and the MCP server use different URL formats — they are not the same base URL.**
+> ⚠️ **Terraform and the MCP server use different URL formats.**
 >
-> - **Terraform** (`dbt_host_url`): legacy multi-tenant URL **with** `/api` suffix
+> - **Terraform** (`dbt_host_url`): account-prefixed URL **with** `/api`
 > - **MCP** (`DBT_HOST`): account-prefixed URL **without** `/api`
 >
 > Your account prefix is shown in dbt Cloud → Account Settings (e.g. `pk455`).
 > Full reference: [dbt Cloud regions & IP addresses](https://docs.getdbt.com/docs/cloud/about-cloud/access-regions-ip-addresses)
 
-#### Terraform `dbt_host_url` (legacy multi-tenant, with `/api`)
-| Region | Value |
-|---|---|
-| EMEA | `https://emea.dbt.com/api` |
-| North America | `https://cloud.getdbt.com/api` |
-| APAC | `https://au.dbt.com/api` |
+#### Region codes — format: `https://ACCOUNT_PREFIX.{region}.dbt.com`
 
-#### MCP `DBT_HOST` (account-prefixed, no `/api`)
-
-Format: `https://ACCOUNT_PREFIX.{region}.dbt.com`
-
-| Cloud | Location | Region code | Example |
-|---|---|---|---|
-| AWS | North America (Virginia) | `us1` | `https://pk455.us1.dbt.com` |
-| AWS | EMEA (Frankfurt) | `eu1` | `https://pk455.eu1.dbt.com` |
-| AWS | APAC (Sydney) | `au1` | `https://pk455.au1.dbt.com` |
-| AWS | Japan (Tokyo) | `jp1` | `https://pk455.jp1.dbt.com` |
-| GCP | North America | `us3` | `https://pk455.us3.dbt.com` |
-| GCP | EMEA (London) | `eu3` | `https://pk455.eu3.dbt.com` |
-| GCP | EMEA (Frankfurt) | `eu4` | `https://pk455.eu4.dbt.com` |
-| Azure | North America (Virginia) | `us2` | `https://pk455.us2.dbt.com` |
-| Azure | EMEA (Ireland) | `eu2` | `https://pk455.eu2.dbt.com` |
+| Cloud | Location | Region code | Terraform `dbt_host_url` | MCP `DBT_HOST` |
+|---|---|---|---|---|
+| AWS | North America (Virginia) | `us1` | `https://pk455.us1.dbt.com/api` | `https://pk455.us1.dbt.com` |
+| AWS | EMEA (Frankfurt) | `eu1` | `https://pk455.eu1.dbt.com/api` | `https://pk455.eu1.dbt.com` |
+| AWS | APAC (Sydney) | `au1` | `https://pk455.au1.dbt.com/api` | `https://pk455.au1.dbt.com` |
+| AWS | Japan (Tokyo) | `jp1` | `https://pk455.jp1.dbt.com/api` | `https://pk455.jp1.dbt.com` |
+| GCP | North America | `us3` | `https://pk455.us3.dbt.com/api` | `https://pk455.us3.dbt.com` |
+| GCP | EMEA (London) | `eu3` | `https://pk455.eu3.dbt.com/api` | `https://pk455.eu3.dbt.com` |
+| GCP | EMEA (Frankfurt) | `eu4` | `https://pk455.eu4.dbt.com/api` | `https://pk455.eu4.dbt.com` |
+| Azure | North America (Virginia) | `us2` | `https://pk455.us2.dbt.com/api` | `https://pk455.us2.dbt.com` |
+| Azure | EMEA (Ireland) | `eu2` | `https://pk455.eu2.dbt.com/api` | `https://pk455.eu2.dbt.com` |
 
 ---
 
