@@ -28,11 +28,36 @@ Before running `/dbt-project-setup`, make sure you have the following:
 | **GitHub App installed** | The dbt Cloud GitHub App must be installed on your GitHub org. Install at: Account Settings → Integrations → GitHub |
 
 ### Region & URL reference
+
+URLs follow the pattern `https://ACCOUNT_PREFIX.{region}.dbt.com` — find your prefix in dbt Cloud → Account Settings. Full reference: [dbt Cloud regions & IP addresses](https://docs.getdbt.com/docs/cloud/about-cloud/access-regions-ip-addresses).
+
+#### AWS
+| Location | Terraform `dbt_host_url` | MCP `DBT_HOST` |
+|---|---|---|
+| North America (Virginia) | `https://ACCOUNT_PREFIX.us1.dbt.com/api` | `https://ACCOUNT_PREFIX.us1.dbt.com` |
+| EMEA (Frankfurt) | `https://ACCOUNT_PREFIX.eu1.dbt.com/api` | `https://ACCOUNT_PREFIX.eu1.dbt.com` |
+| APAC (Sydney) | `https://ACCOUNT_PREFIX.au1.dbt.com/api` | `https://ACCOUNT_PREFIX.au1.dbt.com` |
+| Japan (Tokyo) | `https://ACCOUNT_PREFIX.jp1.dbt.com/api` | `https://ACCOUNT_PREFIX.jp1.dbt.com` |
+
+#### GCP
+| Location | Terraform `dbt_host_url` | MCP `DBT_HOST` |
+|---|---|---|
+| North America | `https://ACCOUNT_PREFIX.us3.dbt.com/api` | `https://ACCOUNT_PREFIX.us3.dbt.com` |
+| EMEA (London) | `https://ACCOUNT_PREFIX.eu3.dbt.com/api` | `https://ACCOUNT_PREFIX.eu3.dbt.com` |
+| EMEA (Frankfurt GCP) | `https://ACCOUNT_PREFIX.eu4.dbt.com/api` | `https://ACCOUNT_PREFIX.eu4.dbt.com` |
+
+#### Azure
+| Location | Terraform `dbt_host_url` | MCP `DBT_HOST` |
+|---|---|---|
+| North America (Virginia) | `https://ACCOUNT_PREFIX.us2.dbt.com/api` | `https://ACCOUNT_PREFIX.us2.dbt.com` |
+| EMEA (Ireland) | `https://ACCOUNT_PREFIX.eu2.dbt.com/api` | `https://ACCOUNT_PREFIX.eu2.dbt.com` |
+
+#### Multi-tenant (legacy)
 | Region | Terraform `dbt_host_url` | MCP `DBT_HOST` |
 |---|---|---|
 | EMEA | `https://emea.dbt.com/api` | `https://emea.dbt.com` |
 | North America | `https://cloud.getdbt.com/api` | `https://cloud.getdbt.com` |
-| AU | `https://au.dbt.com/api` | `https://au.dbt.com` |
+| APAC | `https://au.dbt.com/api` | `https://au.dbt.com` |
 
 > **Note:** Terraform requires `/api` at the end. The MCP server does **not**.
 
