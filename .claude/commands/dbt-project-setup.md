@@ -127,24 +127,33 @@ After generating the scaffold, briefly explain to the user what was created and 
 
 ## Phase 3 — GitHub repository
 
-Ask the user two questions:
-- What GitHub organisation or user should own the repo? (e.g. `novarz`)
-- Should it be public or private?
+### Step 1 — Detect GitHub identity
 
-Use the current directory name as the repo name (no need to ask).
-
-Then create the repo, initialise git, and push:
+Run the following to discover the authenticated user and their organisations:
 
 ```bash
-gh repo create {org}/{directory_name} --private --clone=false   # or --public
+gh api user --jq '{login: .login, name: .name}'
+gh org list
+```
+
+Present the results to the user and ask only:
+- Which owner should the repo be under? (authenticated user or one of their orgs)
+- Should it be public or private?
+
+Use the current directory name as the repo name — do not ask.
+
+### Step 2 — Create repo and push
+
+```bash
+gh repo create {owner}/{directory_name} --private --clone=false   # or --public
 git init
 git add .
 git commit -m "chore: initial commit"
-git remote add origin git@github.com:{org}/{directory_name}.git
+git remote add origin git@github.com:{owner}/{directory_name}.git
 git push -u origin main
 ```
 
-Set `git_remote_url = "git@github.com:{org}/{directory_name}.git"` for use in Terraform.
+Set `git_remote_url = "git@github.com:{owner}/{directory_name}.git"` for use in Terraform.
 
 ---
 
