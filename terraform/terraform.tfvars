@@ -12,16 +12,17 @@ git_clone_strategy     = "github_app"
 github_installation_id = 000000000            # REPLACE: see docs/find-github-installation-id.md
 
 # ─── Snowflake connection ────────────────────────────────────────────────────
-snowflake_account   = "MY_ACCOUNT"            # REPLACE: ej. zna84829
+snowflake_account   = "MY_ACCOUNT"            # REPLACE: e.g. zna84829
 snowflake_database  = "MY_DATABASE"           # REPLACE
 snowflake_warehouse = "MY_WAREHOUSE"          # REPLACE
 snowflake_user      = "MY_USER"               # REPLACE
 snowflake_role      = ""                      # optional, leave empty for default
 
 # ─── Environments / schemas ──────────────────────────────────────────────────
-schema_prefix      = "dbt_myproject"          # REPLACE: schemas = {prefix}_dev / {prefix}_staging
+schema_prefix      = "dbt_myproject"          # REPLACE: schemas = {prefix}_dev / {prefix}_staging / {prefix}_prod
 schema_development = "dev"
 schema_staging     = "staging"
+schema_production  = "prod"
 
 # ─── Jobs ────────────────────────────────────────────────────────────────────
 daily_job_schedule_hours = [6]                # UTC hour for the daily build
