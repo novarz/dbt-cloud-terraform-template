@@ -98,6 +98,53 @@ resource "dbtcloud_job" "daily" {
   }
 }
 
+# ─── Semantic Layer ───────────────────────────────────────────────────────────
+
+resource "dbtcloud_semantic_layer_configuration" "this" {
+  project_id     = dbtcloud_project.this.id
+  environment_id = dbtcloud_environment.staging.environment_id
+}
+
+resource "dbtcloud_snowflake_semantic_layer_credential" "this" {
+  configuration = {
+    project_id      = dbtcloud_project.this.id
+    name            = "Snowflake SL Credential"
+    adapter_version = "snowflake_v0"
+  }
+
+  credential = {
+    project_id  = dbtcloud_project.this.id
+    auth_type   = "password"
+    num_threads = 8
+    user        = var.snowflake_user
+    password    = var.snowflake_password
+    schema      = "${var.schema_prefix}_${var.schema_staging}"
+    database    = var.snowflake_database
+  }
+}
+
+resource "dbtcloud_service_token" "semantic_layer" {
+  name = "${var.project_name}_semantic_layer"
+
+  service_token_permissions {
+    permission_set = "semantic_layer_only"
+    project_id     = dbtcloud_project.this.id
+    all_projects   = false
+  }
+
+  service_token_permissions {
+    permission_set = "metadata_only"
+    project_id     = dbtcloud_project.this.id
+    all_projects   = false
+  }
+}
+
+resource "dbtcloud_semantic_layer_credential_service_token_mapping" "this" {
+  project_id                   = dbtcloud_project.this.id
+  semantic_layer_credential_id = dbtcloud_snowflake_semantic_layer_credential.this.id
+  service_token_id             = dbtcloud_service_token.semantic_layer.id
+}
+
 # ─── Job: Slim CI ─────────────────────────────────────────────────────────────
 
 resource "dbtcloud_job" "slim_ci" {
