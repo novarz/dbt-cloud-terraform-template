@@ -1,39 +1,137 @@
 # dbt Cloud Project Setup
 
 Sets up a complete dbt Cloud project end-to-end:
-- Generates Terraform code (Snowflake connection, environments, jobs, Semantic Layer)
-- Provisions the project on dbt Cloud Platform via `terraform apply`
+- Understands the business domain, data sources, and desired metrics
+- Scaffolds the dbt project structure (models, sources, tests, Semantic Layer YAML)
+- Generates and applies Terraform (Snowflake connection, environments, jobs, Semantic Layer)
 - Configures the dbt Cloud MCP server in `.mcp.json`
 
 ---
 
-## Mode detection
+## Phase 1 — Understand the project
 
-First, check if a `dbt-project.yaml` file exists in the current directory.
+Start by asking the user about the **business context** of the dbt project. This determines the scaffold structure, naming conventions, and Semantic Layer design.
 
-- **If it exists** → read all parameters from it and proceed automatically without asking questions.
-- **If it does not exist** → enter interactive mode: use `AskUserQuestion` to collect the parameters below in groups of 3–4 questions maximum at a time.
+Use `AskUserQuestion` to collect these in **two rounds**:
+
+### Round 1 — Domain & scope
+
+Ask these questions together (up to 4 at a time):
+
+1. **Domain / theme**: What is the business domain of this project?
+   - Options: Banking / Financial Services, Retail & E-commerce, SaaS / Product analytics, Marketing & Growth, Healthcare, Logistics & Supply chain, Custom (ask to describe)
+
+2. **Project complexity**: What level of sophistication do you need?
+   - **Starter** — 1–2 source systems, staging + marts, basic metrics
+   - **Standard** — 3–5 source systems, multi-domain marts, Semantic Layer with key KPIs
+   - **Advanced** — 5+ source systems, full dimensional model, rich Semantic Layer, unit tests, governance
+
+3. **Data sources**: Which source systems will feed this project? (multiSelect)
+   - Options: Snowflake (internal tables), Salesforce, Stripe, Google Analytics / GA4, HubSpot, PostgreSQL / MySQL, Custom / Other
+
+4. **Team size**: Who will work on this project?
+   - Solo analyst, Small team (2–5), Larger team (5+)
+
+### Round 2 — Data & metrics
+
+Ask these questions together:
+
+1. **Key business questions**: What are the 3–5 main questions this project should answer? (free text — ask the user to list them)
+
+2. **Primary grain / entities**: What are the main business entities? e.g. customers, orders, accounts, transactions, sessions, leads (free text)
+
+3. **Modeling preference**: How do you prefer to structure marts?
+   - **Wide tables** — one big flat table per entity (easy for BI tools)
+   - **Normalized** — fact + dimension tables (more flexible, more joins)
+   - **Activity schema** — all events in one table + pivot (great for product analytics)
+
+4. **Time spine granularity**: What is the finest time grain you need for metrics?
+   - Daily, Hourly, Both
 
 ---
 
-## Parameters to collect
+## Phase 2 — Generate dbt project scaffold
 
-### dbt Cloud
+Based on the answers, create the following structure in the current working directory (do not overwrite files that already exist):
+
+```
+models/
+  staging/
+    {source_1}/
+      __{source_1}__sources.yml
+      stg_{source_1}__{entity}.sql      (one per main entity)
+    {source_2}/
+      ...
+  intermediate/                         (only if complexity = Standard or Advanced)
+    int_{domain}_{logic}.sql
+  marts/
+    {domain}/
+      {mart_name}.sql                   (one per main business entity / KPI area)
+      {mart_name}.yml                   (with column descriptions and generic tests)
+  semantic/
+    _entities.yml                       (entities for Semantic Layer)
+    _metrics.yml                        (metrics derived from the business questions)
+    _time_spine.yml                     (time spine at the chosen granularity)
+
+tests/                                  (if complexity = Advanced)
+  unit/
+    test_{key_model}.yml
+
+seeds/
+  .gitkeep
+
+macros/
+  .gitkeep
+
+dbt_project.yml                         (if not already present)
+```
+
+### Content guidelines
+
+- **Staging models**: `SELECT` with renamed/typed columns only. Use `{{ source('source_name', 'table_name') }}`. Add `_loaded_at` surrogate metadata column.
+- **Intermediate models**: business logic joins, no aggregations. Use `{{ ref() }}`.
+- **Mart models**: final aggregated tables. Grain comment at the top of each file. Use `{{ ref() }}`.
+- **`dbt_project.yml`**: set `name`, `version`, materializations (`staging` → view, `intermediate` → ephemeral or view, `marts` → table).
+- **Semantic Layer YAMLs**: generate stubs matching the business questions. Use MetricFlow syntax (`semantic_models`, `metrics`, `entities`, `measures`, `dimensions`). Metric types: `simple`, `ratio`, or `derived` as appropriate.
+- **Tests**: at minimum, `not_null` + `unique` on primary keys for all staging and mart models.
+
+Adapt the scaffold to the domain. For example:
+- **Banking**: entities = accounts, transactions, customers; metrics = balance, transaction_volume, churn_rate
+- **E-commerce**: entities = orders, customers, products; metrics = GMV, AOV, retention, LTV
+- **SaaS**: entities = users, sessions, subscriptions, events; metrics = MRR, DAU, activation_rate, churn
+- **Marketing**: entities = campaigns, leads, conversions; metrics = CAC, ROAS, pipeline_value
+
+After generating the scaffold, briefly explain to the user what was created and ask for confirmation before proceeding to infrastructure.
+
+---
+
+## Phase 3 — Collect infrastructure parameters
+
+### Mode detection
+
+Check if a `dbt-project.yaml` file exists in the current directory.
+
+- **If it exists** → read all infrastructure parameters from it automatically.
+- **If it does not exist** → ask interactively in groups of 3–4 questions.
+
+### Parameters to collect
+
+#### dbt Cloud
 | Variable | Description | Example |
 |---|---|---|
 | `dbt_account_id` | dbt Cloud account ID | `530` |
 | `dbt_host_url` | API host URL | `https://emea.dbt.com/api` |
 | `dbt_token` | Account Admin service token (**sensitive**) | `dbtc_...` |
 
-### Project
+#### Project
 | Variable | Description | Example |
 |---|---|---|
 | `project_name` | Name of the dbt Cloud project | `my_project` |
 | `git_remote_url` | SSH URL of the GitHub repo | `git@github.com:org/repo.git` |
-| `github_installation_id` | GitHub App installation ID for the org | `103071669` |
+| `github_installation_id` | GitHub App installation ID | `103071669` |
 | `dbt_version` | dbt version | `versionless` |
 
-### Snowflake
+#### Snowflake
 | Variable | Description | Example |
 |---|---|---|
 | `snowflake_account` | Snowflake account identifier | `zna84829` |
@@ -41,9 +139,9 @@ First, check if a `dbt-project.yaml` file exists in the current directory.
 | `snowflake_warehouse` | Snowflake warehouse | `transforming` |
 | `snowflake_user` | Snowflake user | `MY_USER` |
 | `snowflake_password` | Snowflake password (**sensitive**) | — |
-| `snowflake_role` | Snowflake role (optional, leave blank for default) | `""` |
+| `snowflake_role` | Snowflake role (optional) | `""` |
 
-### Schemas
+#### Schemas
 | Variable | Description | Default |
 |---|---|---|
 | `schema_prefix` | Prefix for all schemas | `dbt_myproject` |
@@ -51,18 +149,16 @@ First, check if a `dbt-project.yaml` file exists in the current directory.
 | `schema_staging` | Staging schema suffix | `staging` |
 | `schema_production` | Production schema suffix | `prod` |
 
-### Jobs
+#### Jobs
 | Variable | Description | Default |
 |---|---|---|
 | `daily_job_schedule_hours` | UTC hours for daily builds | `[6]` |
 
 ---
 
-## Execution steps
+## Phase 4 — Create Terraform files
 
-### Step 1 — Create Terraform files
-
-Create a `terraform/` directory in the current working directory with these files, filled with the collected values:
+Create a `terraform/` directory with these files filled with the collected values:
 
 **`terraform/providers.tf`**
 ```hcl
@@ -82,12 +178,11 @@ provider "dbtcloud" {
 }
 ```
 
-**`terraform/variables.tf`** — declare all variables from the parameters table above. Mark `dbt_token` and `snowflake_password` as `sensitive = true`.
+**`terraform/variables.tf`** — declare all variables. Mark `dbt_token` and `snowflake_password` as `sensitive = true`.
 
-**`terraform/terraform.tfvars`** — write all non-sensitive values only. Never write `dbt_token` or `snowflake_password` here.
+**`terraform/terraform.tfvars`** — non-sensitive values only. Never write tokens or passwords here.
 
-**`terraform/main.tf`** — use the full resource structure below:
-
+**`terraform/main.tf`**
 ```hcl
 # ─── Project ──────────────────────────────────────────────────────────────────
 
@@ -162,8 +257,7 @@ resource "dbtcloud_environment" "development" {
   type          = "development"
   credential_id = dbtcloud_snowflake_credential.development.credential_id
   connection_id = dbtcloud_global_connection.snowflake.id
-
-  depends_on = [dbtcloud_repository.this]
+  depends_on    = [dbtcloud_repository.this]
 }
 
 resource "dbtcloud_environment" "staging" {
@@ -174,8 +268,7 @@ resource "dbtcloud_environment" "staging" {
   deployment_type = "staging"
   credential_id   = dbtcloud_snowflake_credential.staging.credential_id
   connection_id   = dbtcloud_global_connection.snowflake.id
-
-  depends_on = [dbtcloud_repository.this]
+  depends_on      = [dbtcloud_repository.this]
 }
 
 resource "dbtcloud_environment" "production" {
@@ -186,8 +279,7 @@ resource "dbtcloud_environment" "production" {
   deployment_type = "production"
   credential_id   = dbtcloud_snowflake_credential.production.credential_id
   connection_id   = dbtcloud_global_connection.snowflake.id
-
-  depends_on = [dbtcloud_repository.this]
+  depends_on      = [dbtcloud_repository.this]
 }
 
 # ─── Job: Daily Build (Staging) ───────────────────────────────────────────────
@@ -325,44 +417,47 @@ output "semantic_layer_token_uid" {
 }
 ```
 
-### Step 2 — Update .gitignore
+---
 
-Ensure the following entries exist in `.gitignore` at the project root:
+## Phase 5 — Update .gitignore
+
+Ensure these entries exist in `.gitignore` at the project root:
 ```
 .mcp.json
+dbt-project.yaml
 terraform/.terraform/
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/.terraform.lock.hcl
 ```
 
-### Step 3 — Set sensitive env vars
+---
 
-Before running Terraform, set:
+## Phase 6 — Run Terraform
+
+Set sensitive env vars:
 ```bash
 export TF_VAR_dbt_token="<dbt_token>"
 export TF_VAR_snowflake_password="<snowflake_password>"
 ```
 
-### Step 4 — Run Terraform
-
+Then run:
 ```bash
 cd terraform
 terraform init
 terraform apply -auto-approve
 ```
 
-Capture the outputs after apply:
-- `project_id`
-- `production_environment_id`
-- `staging_environment_id`
+Capture outputs after apply: `project_id`, `production_environment_id`, `staging_environment_id`.
 
-### Step 5 — Configure dbt Cloud MCP server
+---
 
-**Important:** The dbt Cloud MCP host URL does NOT include `/api`. 
-URL format: `https://{prefix}.dbt.com` or `https://emea.dbt.com` depending on region.
+## Phase 7 — Configure dbt Cloud MCP server
 
-Create `.mcp.json` at the project root with the dbt token hardcoded (the file is gitignored):
+**Important:** MCP host URL does NOT include `/api`.
+Format: `https://emea.dbt.com` (not `https://emea.dbt.com/api`).
+
+Create `.mcp.json` at the project root with the token hardcoded (file is gitignored):
 
 ```json
 {
@@ -382,18 +477,25 @@ Create `.mcp.json` at the project root with the dbt token hardcoded (the file is
 }
 ```
 
-### Step 6 — Done
+---
 
-Inform the user:
-- ✅ Terraform resources created
-- ✅ `.mcp.json` configured with dbt Cloud MCP
-- ⚠️ The Semantic Layer configuration requires a successful job run in Production before it activates. Trigger "Daily Build (Production)" manually in dbt Cloud to complete the setup.
-- 🔁 Restart Claude Code (or run `claude --continue`) to load the new MCP server.
+## Phase 8 — Done
+
+Summarize what was created:
+- 📁 dbt project scaffold (models, sources, Semantic Layer YAMLs)
+- ⚙️ Terraform resources applied (project, environments, jobs, Semantic Layer)
+- 🔌 `.mcp.json` configured with dbt Cloud MCP
+
+Remind the user:
+- ⚠️ `dbtcloud_semantic_layer_configuration` requires a successful job run in Production. Trigger "Daily Build (Production)" manually in dbt Cloud to complete the Semantic Layer setup.
+- 🔁 Restart Claude Code (`claude --continue` or reopen) to load the new MCP server.
 
 ---
 
 ## Notes
 
-- `dbtcloud_semantic_layer_configuration` will fail if no successful run exists in the production environment. If it fails, trigger the production job manually and re-run `terraform apply`.
-- `dbt_version` drift: the provider may show benign updates from `versionless` to `latest` on subsequent applies — this is safe to ignore.
-- `github_installation_id` is fixed per GitHub org. For the `novarz` org it is `103071669`.
+- `dbtcloud_semantic_layer_configuration` fails if no successful run exists in the target environment — re-run `terraform apply` after triggering the job.
+- `dbt_version` drift: provider may show benign updates from `versionless` to `latest` — safe to ignore.
+- Provider v1.8+ required for Semantic Layer resources.
+- `github_installation_id` for the `novarz` org is `103071669`.
+- Sensitive files are gitignored: `.mcp.json`, `dbt-project.yaml`, `terraform/terraform.tfstate`.
