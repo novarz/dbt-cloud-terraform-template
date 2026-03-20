@@ -29,37 +29,36 @@ Before running `/dbt-project-setup`, make sure you have the following:
 
 ### Region & URL reference
 
-URLs follow the pattern `https://ACCOUNT_PREFIX.{region}.dbt.com` — find your prefix in dbt Cloud → Account Settings. Full reference: [dbt Cloud regions & IP addresses](https://docs.getdbt.com/docs/cloud/about-cloud/access-regions-ip-addresses).
+> ⚠️ **Terraform and the MCP server use different URL formats — they are not the same base URL.**
+>
+> - **Terraform** (`dbt_host_url`): legacy multi-tenant URL **with** `/api` suffix
+> - **MCP** (`DBT_HOST`): account-prefixed URL **without** `/api`
+>
+> Your account prefix is shown in dbt Cloud → Account Settings (e.g. `pk455`).
+> Full reference: [dbt Cloud regions & IP addresses](https://docs.getdbt.com/docs/cloud/about-cloud/access-regions-ip-addresses)
 
-#### AWS
-| Location | Terraform `dbt_host_url` | MCP `DBT_HOST` |
-|---|---|---|
-| North America (Virginia) | `https://ACCOUNT_PREFIX.us1.dbt.com/api` | `https://ACCOUNT_PREFIX.us1.dbt.com` |
-| EMEA (Frankfurt) | `https://ACCOUNT_PREFIX.eu1.dbt.com/api` | `https://ACCOUNT_PREFIX.eu1.dbt.com` |
-| APAC (Sydney) | `https://ACCOUNT_PREFIX.au1.dbt.com/api` | `https://ACCOUNT_PREFIX.au1.dbt.com` |
-| Japan (Tokyo) | `https://ACCOUNT_PREFIX.jp1.dbt.com/api` | `https://ACCOUNT_PREFIX.jp1.dbt.com` |
+#### Terraform `dbt_host_url` (legacy multi-tenant, with `/api`)
+| Region | Value |
+|---|---|
+| EMEA | `https://emea.dbt.com/api` |
+| North America | `https://cloud.getdbt.com/api` |
+| APAC | `https://au.dbt.com/api` |
 
-#### GCP
-| Location | Terraform `dbt_host_url` | MCP `DBT_HOST` |
-|---|---|---|
-| North America | `https://ACCOUNT_PREFIX.us3.dbt.com/api` | `https://ACCOUNT_PREFIX.us3.dbt.com` |
-| EMEA (London) | `https://ACCOUNT_PREFIX.eu3.dbt.com/api` | `https://ACCOUNT_PREFIX.eu3.dbt.com` |
-| EMEA (Frankfurt GCP) | `https://ACCOUNT_PREFIX.eu4.dbt.com/api` | `https://ACCOUNT_PREFIX.eu4.dbt.com` |
+#### MCP `DBT_HOST` (account-prefixed, no `/api`)
 
-#### Azure
-| Location | Terraform `dbt_host_url` | MCP `DBT_HOST` |
-|---|---|---|
-| North America (Virginia) | `https://ACCOUNT_PREFIX.us2.dbt.com/api` | `https://ACCOUNT_PREFIX.us2.dbt.com` |
-| EMEA (Ireland) | `https://ACCOUNT_PREFIX.eu2.dbt.com/api` | `https://ACCOUNT_PREFIX.eu2.dbt.com` |
+Format: `https://ACCOUNT_PREFIX.{region}.dbt.com`
 
-#### Multi-tenant (legacy)
-| Region | Terraform `dbt_host_url` | MCP `DBT_HOST` |
-|---|---|---|
-| EMEA | `https://emea.dbt.com/api` | `https://emea.dbt.com` |
-| North America | `https://cloud.getdbt.com/api` | `https://cloud.getdbt.com` |
-| APAC | `https://au.dbt.com/api` | `https://au.dbt.com` |
-
-> **Note:** Terraform requires `/api` at the end. The MCP server does **not**.
+| Cloud | Location | Region code | Example |
+|---|---|---|---|
+| AWS | North America (Virginia) | `us1` | `https://pk455.us1.dbt.com` |
+| AWS | EMEA (Frankfurt) | `eu1` | `https://pk455.eu1.dbt.com` |
+| AWS | APAC (Sydney) | `au1` | `https://pk455.au1.dbt.com` |
+| AWS | Japan (Tokyo) | `jp1` | `https://pk455.jp1.dbt.com` |
+| GCP | North America | `us3` | `https://pk455.us3.dbt.com` |
+| GCP | EMEA (London) | `eu3` | `https://pk455.eu3.dbt.com` |
+| GCP | EMEA (Frankfurt) | `eu4` | `https://pk455.eu4.dbt.com` |
+| Azure | North America (Virginia) | `us2` | `https://pk455.us2.dbt.com` |
+| Azure | EMEA (Ireland) | `eu2` | `https://pk455.eu2.dbt.com` |
 
 ---
 
