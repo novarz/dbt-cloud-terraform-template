@@ -2,9 +2,24 @@
 
 Sets up a complete dbt Cloud project end-to-end:
 - Understands the business domain, data sources, and desired metrics
-- Scaffolds the dbt project structure (models, sources, tests, Semantic Layer YAML)
+- Scaffolds the dbt project structure (models, sources, seeds, tests, Semantic Layer YAML)
 - Generates and applies Terraform (Snowflake connection, environments, jobs, Semantic Layer)
 - Configures the dbt Cloud MCP server in `.mcp.json`
+
+---
+
+## Skills to invoke
+
+This command relies on the following Claude Code dbt skills. Invoke them explicitly at the relevant phase instead of doing the work manually:
+
+| Skill | When to use |
+|---|---|
+| `dbt:using-dbt-for-analytics-engineering` | Phase 2 — generating staging models, intermediate, marts, seeds, tests, and YAML configs |
+| `dbt:building-dbt-semantic-layer` | Phase 2 — generating semantic model YAMLs, metrics, entities, measures, time spine |
+| `dbt:configuring-dbt-mcp-server` | Phase 7 — creating and validating the `.mcp.json` configuration |
+| `dbt:running-dbt-commands` | Any phase — if dbt CLI commands need to be run (compile, parse, test) |
+
+Do not attempt to generate dbt models or Semantic Layer YAML without invoking the appropriate skill first.
 
 ---
 
@@ -52,6 +67,9 @@ Ask these questions together:
 
 ## Phase 2 — Generate dbt project scaffold
 
+**Invoke `dbt:using-dbt-for-analytics-engineering`** to generate models, sources, seeds, and tests.
+**Invoke `dbt:building-dbt-semantic-layer`** to generate Semantic Layer YAMLs.
+
 Based on the answers, create the following structure in the current working directory (do not overwrite files that already exist):
 
 ```
@@ -73,12 +91,13 @@ models/
     _metrics.yml                        (metrics derived from the business questions)
     _time_spine.yml                     (time spine at the chosen granularity)
 
+seeds/
+  {domain}__{reference_data}.csv        (one per relevant lookup / reference table)
+  _schema.yml                           (column descriptions and tests for seeds)
+
 tests/                                  (if complexity = Advanced)
   unit/
     test_{key_model}.yml
-
-seeds/
-  .gitkeep
 
 macros/
   .gitkeep
@@ -91,15 +110,16 @@ dbt_project.yml                         (if not already present)
 - **Staging models**: `SELECT` with renamed/typed columns only. Use `{{ source('source_name', 'table_name') }}`. Add `_loaded_at` surrogate metadata column.
 - **Intermediate models**: business logic joins, no aggregations. Use `{{ ref() }}`.
 - **Mart models**: final aggregated tables. Grain comment at the top of each file. Use `{{ ref() }}`.
-- **`dbt_project.yml`**: set `name`, `version`, materializations (`staging` → view, `intermediate` → ephemeral or view, `marts` → table).
+- **Seeds**: generate realistic CSV reference data relevant to the domain (e.g. country codes, currency codes, product categories, account types, status mappings). Include a `_schema.yml` with descriptions and `not_null` + `accepted_values` tests. Materialise seeds as `table`.
+- **`dbt_project.yml`**: set `name`, `version`, materializations (`staging` → view, `intermediate` → ephemeral or view, `marts` → table, `seeds` → table).
 - **Semantic Layer YAMLs**: generate stubs matching the business questions. Use MetricFlow syntax (`semantic_models`, `metrics`, `entities`, `measures`, `dimensions`). Metric types: `simple`, `ratio`, or `derived` as appropriate.
 - **Tests**: at minimum, `not_null` + `unique` on primary keys for all staging and mart models.
 
 Adapt the scaffold to the domain. For example:
-- **Banking**: entities = accounts, transactions, customers; metrics = balance, transaction_volume, churn_rate
-- **E-commerce**: entities = orders, customers, products; metrics = GMV, AOV, retention, LTV
-- **SaaS**: entities = users, sessions, subscriptions, events; metrics = MRR, DAU, activation_rate, churn
-- **Marketing**: entities = campaigns, leads, conversions; metrics = CAC, ROAS, pipeline_value
+- **Banking**: entities = accounts, transactions, customers; seeds = account_types, currencies, transaction_categories; metrics = balance, transaction_volume, churn_rate
+- **E-commerce**: entities = orders, customers, products; seeds = product_categories, countries, payment_methods; metrics = GMV, AOV, retention, LTV
+- **SaaS**: entities = users, sessions, subscriptions, events; seeds = plan_types, feature_flags, regions; metrics = MRR, DAU, activation_rate, churn
+- **Marketing**: entities = campaigns, leads, conversions; seeds = channel_types, utm_sources, regions; metrics = CAC, ROAS, pipeline_value
 
 After generating the scaffold, briefly explain to the user what was created and ask for confirmation before proceeding to infrastructure.
 
