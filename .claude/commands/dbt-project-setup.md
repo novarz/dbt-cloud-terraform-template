@@ -125,7 +125,30 @@ After generating the scaffold, briefly explain to the user what was created and 
 
 ---
 
-## Phase 3 — Collect infrastructure parameters
+## Phase 3 — GitHub repository
+
+Ask the user two questions:
+- What GitHub organisation or user should own the repo? (e.g. `novarz`)
+- Should it be public or private?
+
+Use the current directory name as the repo name (no need to ask).
+
+Then create the repo, initialise git, and push:
+
+```bash
+gh repo create {org}/{directory_name} --private --clone=false   # or --public
+git init
+git add .
+git commit -m "chore: initial commit"
+git remote add origin git@github.com:{org}/{directory_name}.git
+git push -u origin main
+```
+
+Set `git_remote_url = "git@github.com:{org}/{directory_name}.git"` for use in Terraform.
+
+---
+
+## Phase 4 — Collect infrastructure parameters
 
 ### Mode detection
 
@@ -191,7 +214,7 @@ If the endpoint returns an empty list or errors, fall back to asking the user.
 
 ---
 
-## Phase 4 — Create Terraform files
+## Phase 5 — Create Terraform files
 
 Create a `terraform/` directory with these files filled with the collected values:
 
@@ -454,7 +477,7 @@ output "semantic_layer_token_uid" {
 
 ---
 
-## Phase 5 — Update .gitignore
+## Phase 6 — Update .gitignore
 
 Ensure these entries exist in `.gitignore` at the project root:
 ```
@@ -468,7 +491,7 @@ terraform/.terraform.lock.hcl
 
 ---
 
-## Phase 6 — Run Terraform
+## Phase 7 — Run Terraform
 
 Set sensitive env vars:
 ```bash
@@ -487,10 +510,11 @@ Capture outputs after apply: `project_id`, `production_environment_id`, `staging
 
 ---
 
-## Phase 7 — Configure dbt Cloud MCP server
+## Phase 8 — Configure dbt Cloud MCP server
 
-**Important:** MCP host URL does NOT include `/api`.
-Format: `https://emea.dbt.com` (not `https://emea.dbt.com/api`).
+**Important:** MCP host URL uses the account-prefixed format **without** `/api`.
+Format: `https://ACCOUNT_PREFIX.{region}.dbt.com` (e.g. `https://pk455.eu1.dbt.com`).
+The `/api` suffix is only for Terraform, never for the MCP server.
 
 Create `.mcp.json` at the project root with the token hardcoded (file is gitignored):
 
@@ -514,7 +538,7 @@ Create `.mcp.json` at the project root with the token hardcoded (file is gitigno
 
 ---
 
-## Phase 8 — Done
+## Phase 9 — Done
 
 Summarize what was created:
 - 📁 dbt project scaffold (models, sources, Semantic Layer YAMLs)
