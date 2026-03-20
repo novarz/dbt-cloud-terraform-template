@@ -6,7 +6,7 @@ variable "dbt_account_id" {
 }
 
 variable "dbt_host_url" {
-  description = "dbt Cloud host URL (e.g. https://emea.dbt.com)"
+  description = "dbt Cloud host URL (e.g. https://emea.dbt.com/api)"
   type        = string
 }
 
@@ -51,7 +51,7 @@ variable "github_installation_id" {
 # ─── Snowflake connection ─────────────────────────────────────────────────────
 
 variable "snowflake_account" {
-  description = "Snowflake account identifier (e.g. zna84829.eu-west-1)"
+  description = "Snowflake account identifier (e.g. zna84829)"
   type        = string
 }
 
@@ -85,20 +85,26 @@ variable "snowflake_role" {
 # ─── Environments / schemas ───────────────────────────────────────────────────
 
 variable "schema_prefix" {
-  description = "Prefix for all Snowflake schemas (e.g. dbt_sduran_terraform_test)"
+  description = "Prefix for all Snowflake schemas (e.g. dbt_myproject)"
   type        = string
 }
 
 variable "schema_development" {
-  description = "Snowflake schema for the Development environment (prefix will be prepended)"
+  description = "Snowflake schema suffix for the Development environment"
   type        = string
   default     = "dev"
 }
 
 variable "schema_staging" {
-  description = "Snowflake schema for the Staging environment (prefix will be prepended)"
+  description = "Snowflake schema suffix for the Staging environment"
   type        = string
   default     = "staging"
+}
+
+variable "schema_production" {
+  description = "Snowflake schema suffix for the Production environment"
+  type        = string
+  default     = "prod"
 }
 
 # ─── Jobs ─────────────────────────────────────────────────────────────────────
