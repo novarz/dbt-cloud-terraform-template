@@ -3,7 +3,7 @@
 Sets up a complete dbt Cloud project end-to-end:
 - Understands the business domain, data sources, and desired metrics
 - Scaffolds the dbt project structure (models, sources, seeds, tests, Semantic Layer YAML)
-- Generates and applies Terraform (Snowflake connection, environments, jobs, Semantic Layer)
+- Generates and applies Terraform (connection, environments, jobs, Semantic Layer)
 - Configures the dbt Cloud MCP server in `.mcp.json`
 
 ---
@@ -16,7 +16,7 @@ This command relies on the following Claude Code dbt skills. Invoke them explici
 |---|---|
 | `dbt:using-dbt-for-analytics-engineering` | Phase 2 — generating staging models, intermediate, marts, seeds, tests, and YAML configs |
 | `dbt:building-dbt-semantic-layer` | Phase 2 — generating semantic model YAMLs, metrics, entities, measures, time spine |
-| `dbt:configuring-dbt-mcp-server` | Phase 7 — creating and validating the `.mcp.json` configuration |
+| `dbt:configuring-dbt-mcp-server` | Phase 8 — creating and validating the `.mcp.json` configuration |
 | `dbt:running-dbt-commands` | Any phase — if dbt CLI commands need to be run (compile, parse, test) |
 
 Do not attempt to generate dbt models or Semantic Layer YAML without invoking the appropriate skill first.
@@ -41,8 +41,9 @@ Ask these questions together (up to 4 at a time):
    - **Standard** — 3–5 source systems, multi-domain marts, Semantic Layer with key KPIs
    - **Advanced** — 5+ source systems, full dimensional model, rich Semantic Layer, unit tests, governance
 
-3. **Data sources**: Which source systems will feed this project? (multiSelect)
-   - Options: Snowflake (internal tables), Salesforce, Stripe, Google Analytics / GA4, HubSpot, PostgreSQL / MySQL, Custom / Other
+3. **Data warehouse**: Which data warehouse will this project use?
+   - **Snowflake** — user + password authentication
+   - **BigQuery** — service account JSON authentication
 
 4. **Team size**: Who will work on this project?
    - Solo analyst, Small team (2–5), Larger team (5+)
@@ -51,9 +52,10 @@ Ask these questions together (up to 4 at a time):
 
 Ask these questions together:
 
-1. **Key business questions**: What are the 3–5 main questions this project should answer? (free text — ask the user to list them)
+1. **Data sources**: Which source systems will feed this project? (multiSelect)
+   - Options: Internal warehouse tables, Salesforce, Stripe, Google Analytics / GA4, HubSpot, PostgreSQL / MySQL, Custom / Other
 
-2. **Primary grain / entities**: What are the main business entities? e.g. customers, orders, accounts, transactions, sessions, leads (free text)
+2. **Key business questions**: What are the 3–5 main questions this project should answer? (free text)
 
 3. **Modeling preference**: How do you prefer to structure marts?
    - **Wide tables** — one big flat table per entity (easy for BI tools)
@@ -70,7 +72,7 @@ Ask these questions together:
 **Invoke `dbt:using-dbt-for-analytics-engineering`** to generate models, sources, seeds, and tests.
 **Invoke `dbt:building-dbt-semantic-layer`** to generate Semantic Layer YAMLs.
 
-Based on the answers, create the following structure in the current working directory (do not overwrite files that already exist):
+Based on the answers, create the following structure (do not overwrite files that already exist):
 
 ```
 models/
@@ -84,16 +86,16 @@ models/
     int_{domain}_{logic}.sql
   marts/
     {domain}/
-      {mart_name}.sql                   (one per main business entity / KPI area)
-      {mart_name}.yml                   (with column descriptions and generic tests)
+      {mart_name}.sql
+      {mart_name}.yml                   (column descriptions and generic tests)
   semantic/
-    _entities.yml                       (entities for Semantic Layer)
-    _metrics.yml                        (metrics derived from the business questions)
-    _time_spine.yml                     (time spine at the chosen granularity)
+    _entities.yml
+    _metrics.yml
+    _time_spine.yml
 
 seeds/
   {domain}__{reference_data}.csv        (one per relevant lookup / reference table)
-  _schema.yml                           (column descriptions and tests for seeds)
+  _schema.yml
 
 tests/                                  (if complexity = Advanced)
   unit/
@@ -107,21 +109,21 @@ dbt_project.yml                         (if not already present)
 
 ### Content guidelines
 
-- **Staging models**: `SELECT` with renamed/typed columns only. Use `{{ source('source_name', 'table_name') }}`. Add `_loaded_at` surrogate metadata column.
+- **Staging models**: `SELECT` with renamed/typed columns only. Use `{{ source() }}`. Add `_loaded_at` metadata column.
 - **Intermediate models**: business logic joins, no aggregations. Use `{{ ref() }}`.
-- **Mart models**: final aggregated tables. Grain comment at the top of each file. Use `{{ ref() }}`.
-- **Seeds**: generate realistic CSV reference data relevant to the domain (e.g. country codes, currency codes, product categories, account types, status mappings). Include a `_schema.yml` with descriptions and `not_null` + `accepted_values` tests. Materialise seeds as `table`.
-- **`dbt_project.yml`**: set `name`, `version`, materializations (`staging` → view, `intermediate` → ephemeral or view, `marts` → table, `seeds` → table).
-- **Semantic Layer YAMLs**: generate stubs matching the business questions. Use MetricFlow syntax (`semantic_models`, `metrics`, `entities`, `measures`, `dimensions`). Metric types: `simple`, `ratio`, or `derived` as appropriate.
-- **Tests**: at minimum, `not_null` + `unique` on primary keys for all staging and mart models.
+- **Mart models**: final aggregated tables. Grain comment at the top. Use `{{ ref() }}`.
+- **Seeds**: realistic CSV reference data relevant to the domain. Include `_schema.yml` with `not_null` + `accepted_values` tests.
+- **`dbt_project.yml`**: materializations — `staging` → view, `intermediate` → ephemeral, `marts` → table, `seeds` → table.
+- **Semantic Layer YAMLs**: MetricFlow syntax (`semantic_models`, `metrics`, `entities`, `measures`, `dimensions`). Metric types: `simple`, `ratio`, or `derived`.
+- **Tests**: `not_null` + `unique` on primary keys for all staging and mart models.
 
-Adapt the scaffold to the domain. For example:
-- **Banking**: entities = accounts, transactions, customers; seeds = account_types, currencies, transaction_categories; metrics = balance, transaction_volume, churn_rate
-- **E-commerce**: entities = orders, customers, products; seeds = product_categories, countries, payment_methods; metrics = GMV, AOV, retention, LTV
-- **SaaS**: entities = users, sessions, subscriptions, events; seeds = plan_types, feature_flags, regions; metrics = MRR, DAU, activation_rate, churn
-- **Marketing**: entities = campaigns, leads, conversions; seeds = channel_types, utm_sources, regions; metrics = CAC, ROAS, pipeline_value
+Domain examples:
+- **Banking**: entities = accounts, transactions, customers; seeds = account_types, currencies, transaction_categories
+- **E-commerce**: entities = orders, customers, products; seeds = product_categories, countries, payment_methods
+- **SaaS**: entities = users, sessions, subscriptions; seeds = plan_types, feature_flags, regions
+- **Marketing**: entities = campaigns, leads, conversions; seeds = channel_types, utm_sources, regions
 
-After generating the scaffold, briefly explain to the user what was created and ask for confirmation before proceeding to infrastructure.
+After generating the scaffold, briefly summarise what was created and ask for confirmation before proceeding.
 
 ---
 
@@ -129,23 +131,21 @@ After generating the scaffold, briefly explain to the user what was created and 
 
 ### Step 1 — Detect GitHub identity
 
-Run the following to discover the authenticated user and their organisations:
-
 ```bash
 gh api user --jq '{login: .login, name: .name}'
 gh org list
 ```
 
-Present the results to the user and ask only:
-- Which owner should the repo be under? (authenticated user or one of their orgs)
-- Should it be public or private?
+Ask the user only:
+- Which owner? (authenticated user or one of their orgs)
+- Public or private?
 
 Use the current directory name as the repo name — do not ask.
 
 ### Step 2 — Create repo and push
 
 ```bash
-gh repo create {owner}/{directory_name} --private --clone=false   # or --public
+gh repo create {owner}/{directory_name} --private   # or --public
 git init
 git add .
 git commit -m "chore: initial commit"
@@ -153,39 +153,32 @@ git remote add origin git@github.com:{owner}/{directory_name}.git
 git push -u origin main
 ```
 
-Set `git_remote_url = "git@github.com:{owner}/{directory_name}.git"` for use in Terraform.
+Set `git_remote_url = "git@github.com:{owner}/{directory_name}.git"` for Terraform.
 
 ---
 
 ## Phase 4 — Collect infrastructure parameters
 
-### Mode detection
+Check if `dbt-project.yaml` exists → read from it automatically. Otherwise ask interactively.
 
-Check if a `dbt-project.yaml` file exists in the current directory.
-
-- **If it exists** → read all infrastructure parameters from it automatically.
-- **If it does not exist** → ask interactively in groups of 3–4 questions.
-
-### Parameters to collect
+### Common parameters (always required)
 
 #### dbt Cloud
 | Variable | Description | Example |
 |---|---|---|
 | `dbt_account_id` | dbt Cloud account ID | `530` |
-| `dbt_host_url` | API host URL | `https://emea.dbt.com/api` |
+| `dbt_host_url` | API host URL (with `/api`) | `https://pk455.eu1.dbt.com/api` |
 | `dbt_token` | Account Admin service token (**sensitive**) | `dbtc_...` |
 
 #### Project
 | Variable | Description | Example |
 |---|---|---|
-| `project_name` | Name of the dbt Cloud project | `my_project` |
-| `git_remote_url` | SSH URL of the GitHub repo | `git@github.com:org/repo.git` |
-| `github_installation_id` | GitHub App installation ID | `103071669` |
+| `project_name` | dbt Cloud project name | `my_project` |
 | `dbt_version` | dbt version | `versionless` |
 
-##### Auto-discovering `github_installation_id`
+#### Auto-discover `github_installation_id`
 
-Do not ask the user for this value. Discover it automatically by calling the dbt Cloud API once you have `dbt_account_id`, `dbt_host_url`, and `dbt_token`:
+Do not ask the user. Run:
 
 ```bash
 curl -s \
@@ -194,40 +187,57 @@ curl -s \
   | jq '.data[] | {id: .id, login: .account.login}'
 ```
 
-Match the result whose `login` corresponds to the GitHub organisation or user that owns the repo. Use that `id` as `github_installation_id`.
+Match `login` to the GitHub org/user. If empty or error, ask the user.
 
-If the endpoint returns an empty list or errors, fall back to asking the user.
-
-#### Snowflake
-| Variable | Description | Example |
+#### Schemas / datasets
+| Variable | Snowflake | BigQuery |
 |---|---|---|
-| `snowflake_account` | Snowflake account identifier | `zna84829` |
-| `snowflake_database` | Snowflake database | `Analytics` |
-| `snowflake_warehouse` | Snowflake warehouse | `transforming` |
-| `snowflake_user` | Snowflake user | `MY_USER` |
-| `snowflake_password` | Snowflake password (**sensitive**) | — |
-| `snowflake_role` | Snowflake role (optional) | `""` |
-
-#### Schemas
-| Variable | Description | Default |
-|---|---|---|
-| `schema_prefix` | Prefix for all schemas | `dbt_myproject` |
-| `schema_development` | Development schema suffix | `dev` |
-| `schema_staging` | Staging schema suffix | `staging` |
-| `schema_production` | Production schema suffix | `prod` |
+| `schema_prefix` | Snowflake schema prefix | BigQuery dataset prefix |
+| `schema_development` | `dev` | `dev` |
+| `schema_staging` | `staging` | `staging` |
+| `schema_production` | `prod` | `prod` |
 
 #### Jobs
-| Variable | Description | Default |
-|---|---|---|
-| `daily_job_schedule_hours` | UTC hours for daily builds | `[6]` |
+| Variable | Default |
+|---|---|
+| `daily_job_schedule_hours` | `[6]` |
+
+---
+
+### Snowflake-specific parameters
+
+Only collect these if the user chose **Snowflake**:
+
+| Variable | Description |
+|---|---|
+| `snowflake_account` | Account identifier (e.g. `zna84829`) |
+| `snowflake_database` | Database name |
+| `snowflake_warehouse` | Virtual warehouse name |
+| `snowflake_user` | Username |
+| `snowflake_password` | Password (**sensitive** — `TF_VAR_snowflake_password`) |
+| `snowflake_role` | Role (optional, leave blank for default) |
+
+---
+
+### BigQuery-specific parameters
+
+Only collect these if the user chose **BigQuery**:
+
+| Variable | Description |
+|---|---|
+| `bq_project_id` | GCP project ID (e.g. `my-gcp-project`) |
+| `bq_location` | Dataset location (e.g. `EU`, `US`, `europe-west1`) |
+| `bq_service_account_json` | Full contents of the service account JSON file (**sensitive** — `TF_VAR_bq_service_account_json`) |
+
+Ask the user to paste the contents of their service account JSON, or provide the file path so you can read it with the Read tool.
 
 ---
 
 ## Phase 5 — Create Terraform files
 
-Create a `terraform/` directory with these files filled with the collected values:
+Create `terraform/` with `providers.tf`, `variables.tf`, `terraform.tfvars`, `main.tf`, `outputs.tf`.
 
-**`terraform/providers.tf`**
+**`terraform/providers.tf`** is the same regardless of warehouse:
 ```hcl
 terraform {
   required_providers {
@@ -245,11 +255,16 @@ provider "dbtcloud" {
 }
 ```
 
-**`terraform/variables.tf`** — declare all variables. Mark `dbt_token` and `snowflake_password` as `sensitive = true`.
+**`terraform/variables.tf`** — declare all variables for the chosen warehouse. Mark `dbt_token`, `snowflake_password` / `bq_service_account_json` as `sensitive = true`.
 
-**`terraform/terraform.tfvars`** — non-sensitive values only. Never write tokens or passwords here.
+**`terraform/terraform.tfvars`** — non-sensitive values only.
 
-**`terraform/main.tf`**
+---
+
+### `terraform/main.tf` — Snowflake variant
+
+Use this when the user chose **Snowflake**:
+
 ```hcl
 # ─── Project ──────────────────────────────────────────────────────────────────
 
@@ -266,9 +281,9 @@ resource "dbtcloud_repository" "this" {
   github_installation_id = var.github_installation_id
 }
 
-# ─── Global connection (Snowflake) ────────────────────────────────────────────
+# ─── Global connection ────────────────────────────────────────────────────────
 
-resource "dbtcloud_global_connection" "snowflake" {
+resource "dbtcloud_global_connection" "this" {
   name = "Snowflake Terraform"
 
   snowflake = {
@@ -286,7 +301,7 @@ resource "dbtcloud_project_repository" "this" {
   repository_id = dbtcloud_repository.this.repository_id
 }
 
-# ─── Snowflake credentials ────────────────────────────────────────────────────
+# ─── Credentials ─────────────────────────────────────────────────────────────
 
 resource "dbtcloud_snowflake_credential" "development" {
   project_id  = dbtcloud_project.this.id
@@ -323,7 +338,7 @@ resource "dbtcloud_environment" "development" {
   dbt_version   = var.dbt_version
   type          = "development"
   credential_id = dbtcloud_snowflake_credential.development.credential_id
-  connection_id = dbtcloud_global_connection.snowflake.id
+  connection_id = dbtcloud_global_connection.this.id
   depends_on    = [dbtcloud_repository.this]
 }
 
@@ -334,7 +349,7 @@ resource "dbtcloud_environment" "staging" {
   type            = "deployment"
   deployment_type = "staging"
   credential_id   = dbtcloud_snowflake_credential.staging.credential_id
-  connection_id   = dbtcloud_global_connection.snowflake.id
+  connection_id   = dbtcloud_global_connection.this.id
   depends_on      = [dbtcloud_repository.this]
 }
 
@@ -345,11 +360,11 @@ resource "dbtcloud_environment" "production" {
   type            = "deployment"
   deployment_type = "production"
   credential_id   = dbtcloud_snowflake_credential.production.credential_id
-  connection_id   = dbtcloud_global_connection.snowflake.id
+  connection_id   = dbtcloud_global_connection.this.id
   depends_on      = [dbtcloud_repository.this]
 }
 
-# ─── Job: Daily Build (Staging) ───────────────────────────────────────────────
+# ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 resource "dbtcloud_job" "daily" {
   project_id     = dbtcloud_project.this.id
@@ -358,19 +373,12 @@ resource "dbtcloud_job" "daily" {
   execute_steps  = ["dbt deps", "dbt build", "dbt docs generate"]
   dbt_version    = var.dbt_version
   generate_docs  = true
-
   schedule_type  = "every_day"
   schedule_hours = var.daily_job_schedule_hours
-
   triggers = {
-    github_webhook       = false
-    git_provider_webhook = false
-    schedule             = true
-    on_merge             = false
+    github_webhook = false, git_provider_webhook = false, schedule = true, on_merge = false
   }
 }
-
-# ─── Job: Daily Build (Production) ────────────────────────────────────────────
 
 resource "dbtcloud_job" "daily_prod" {
   project_id     = dbtcloud_project.this.id
@@ -379,35 +387,23 @@ resource "dbtcloud_job" "daily_prod" {
   execute_steps  = ["dbt deps", "dbt build", "dbt docs generate"]
   dbt_version    = var.dbt_version
   generate_docs  = true
-
   schedule_type  = "every_day"
   schedule_hours = var.daily_job_schedule_hours
-
   triggers = {
-    github_webhook       = false
-    git_provider_webhook = false
-    schedule             = true
-    on_merge             = false
+    github_webhook = false, git_provider_webhook = false, schedule = true, on_merge = false
   }
 }
 
-# ─── Job: Slim CI ─────────────────────────────────────────────────────────────
-
 resource "dbtcloud_job" "slim_ci" {
-  project_id     = dbtcloud_project.this.id
-  environment_id = dbtcloud_environment.staging.environment_id
-  name           = "Slim CI"
-  execute_steps  = ["dbt deps", "dbt build --select state:modified+ --defer --state ./artifacts"]
-  dbt_version    = var.dbt_version
-
+  project_id               = dbtcloud_project.this.id
+  environment_id           = dbtcloud_environment.staging.environment_id
+  name                     = "Slim CI"
+  execute_steps            = ["dbt deps", "dbt build --select state:modified+ --defer --state ./artifacts"]
+  dbt_version              = var.dbt_version
   deferring_environment_id = dbtcloud_environment.staging.environment_id
   run_compare_changes      = true
-
   triggers = {
-    github_webhook       = true
-    git_provider_webhook = true
-    schedule             = false
-    on_merge             = false
+    github_webhook = true, git_provider_webhook = true, schedule = false, on_merge = false
   }
 }
 
@@ -424,7 +420,6 @@ resource "dbtcloud_snowflake_semantic_layer_credential" "this" {
     name            = "Snowflake SL Credential"
     adapter_version = "snowflake_v0"
   }
-
   credential = {
     project_id  = dbtcloud_project.this.id
     auth_type   = "password"
@@ -438,13 +433,11 @@ resource "dbtcloud_snowflake_semantic_layer_credential" "this" {
 
 resource "dbtcloud_service_token" "semantic_layer" {
   name = "${var.project_name}_semantic_layer"
-
   service_token_permissions {
     permission_set = "semantic_layer_only"
     project_id     = dbtcloud_project.this.id
     all_projects   = false
   }
-
   service_token_permissions {
     permission_set = "metadata_only"
     project_id     = dbtcloud_project.this.id
@@ -459,7 +452,71 @@ resource "dbtcloud_semantic_layer_credential_service_token_mapping" "this" {
 }
 ```
 
-**`terraform/outputs.tf`**
+---
+
+### `terraform/main.tf` — BigQuery variant
+
+Use this when the user chose **BigQuery**.
+
+Before writing this file, invoke `dbt:fetching-dbt-docs` to retrieve the latest `dbtcloud_global_connection` BigQuery block attributes and `dbtcloud_bigquery_credential` schema from the provider docs — do not guess field names.
+
+The structure follows the same pattern as Snowflake with these differences:
+
+```hcl
+# ─── Global connection ────────────────────────────────────────────────────────
+
+resource "dbtcloud_global_connection" "this" {
+  name = "BigQuery Terraform"
+
+  bigquery = {
+    gcp_project_id         = var.bq_project_id
+    location               = var.bq_location
+    # auth fields come from the service account JSON:
+    auth_type              = "service_account"
+    client_email           = jsondecode(var.bq_service_account_json).client_email
+    private_key            = jsondecode(var.bq_service_account_json).private_key
+    private_key_id         = jsondecode(var.bq_service_account_json).private_key_id
+    token_uri              = jsondecode(var.bq_service_account_json).token_uri
+    # verify remaining fields against provider docs before including
+  }
+}
+
+# ─── Credentials (BigQuery uses datasets, not schemas) ────────────────────────
+
+resource "dbtcloud_bigquery_credential" "development" {
+  project_id = dbtcloud_project.this.id
+  dataset    = "${var.schema_prefix}_${var.schema_development}"
+  threads    = 4
+}
+
+resource "dbtcloud_bigquery_credential" "staging" {
+  project_id = dbtcloud_project.this.id
+  dataset    = "${var.schema_prefix}_${var.schema_staging}"
+  threads    = 16
+}
+
+resource "dbtcloud_bigquery_credential" "production" {
+  project_id = dbtcloud_project.this.id
+  dataset    = "${var.schema_prefix}_${var.schema_production}"
+  threads    = 16
+}
+
+# ─── Environments — same as Snowflake but referencing bigquery credentials ────
+
+# (same dbtcloud_environment resources, credential_id from bigquery credentials)
+
+# ─── Semantic Layer ───────────────────────────────────────────────────────────
+
+# Use dbtcloud_bigquery_semantic_layer_credential instead of snowflake variant.
+# Retrieve exact block schema from provider docs before writing.
+```
+
+For BigQuery, `TF_VAR_bq_service_account_json` replaces `TF_VAR_snowflake_password`.
+
+---
+
+### `terraform/outputs.tf`
+
 ```hcl
 output "project_id" {
   value = dbtcloud_project.this.id
@@ -474,9 +531,8 @@ output "staging_environment_id" {
 }
 
 output "semantic_layer_token" {
-  description = "Service token for the Semantic Layer (only shown on first apply)"
-  value       = dbtcloud_service_token.semantic_layer.token_string
-  sensitive   = true
+  value     = dbtcloud_service_token.semantic_layer.token_string
+  sensitive = true
 }
 
 output "semantic_layer_token_uid" {
@@ -488,7 +544,6 @@ output "semantic_layer_token_uid" {
 
 ## Phase 6 — Update .gitignore
 
-Ensure these entries exist in `.gitignore` at the project root:
 ```
 .mcp.json
 dbt-project.yaml
@@ -502,30 +557,33 @@ terraform/.terraform.lock.hcl
 
 ## Phase 7 — Run Terraform
 
-Set sensitive env vars:
+**Snowflake:**
 ```bash
-export TF_VAR_dbt_token="<dbt_token>"
-export TF_VAR_snowflake_password="<snowflake_password>"
+export TF_VAR_dbt_token="..."
+export TF_VAR_snowflake_password="..."
 ```
 
-Then run:
+**BigQuery:**
 ```bash
-cd terraform
-terraform init
-terraform apply -auto-approve
+export TF_VAR_dbt_token="..."
+export TF_VAR_bq_service_account_json='{ ... }'   # full JSON content, single-quoted
 ```
 
-Capture outputs after apply: `project_id`, `production_environment_id`, `staging_environment_id`.
+Then:
+```bash
+cd terraform && terraform init && terraform apply -auto-approve
+```
+
+Capture: `project_id`, `production_environment_id`, `staging_environment_id`.
 
 ---
 
 ## Phase 8 — Configure dbt Cloud MCP server
 
-**Important:** MCP host URL uses the account-prefixed format **without** `/api`.
-Format: `https://ACCOUNT_PREFIX.{region}.dbt.com` (e.g. `https://pk455.eu1.dbt.com`).
-The `/api` suffix is only for Terraform, never for the MCP server.
+**Invoke `dbt:configuring-dbt-mcp-server`** to generate and validate the `.mcp.json`.
 
-Create `.mcp.json` at the project root with the token hardcoded (file is gitignored):
+MCP host URL — account-prefixed format **without** `/api`:
+- Example: `https://pk455.eu1.dbt.com` (not `https://pk455.eu1.dbt.com/api`)
 
 ```json
 {
@@ -534,11 +592,11 @@ Create `.mcp.json` at the project root with the token hardcoded (file is gitigno
       "command": "uvx",
       "args": ["dbt-mcp"],
       "env": {
-        "DBT_HOST": "<dbt_host_without_api_suffix>",
+        "DBT_HOST": "<host_without_api>",
         "DBT_TOKEN": "<dbt_token>",
         "DBT_ACCOUNT_ID": "<dbt_account_id>",
-        "DBT_PROJECT_ID": "<project_id_from_terraform_output>",
-        "DBT_ENVIRONMENT_ID": "<production_environment_id_from_terraform_output>"
+        "DBT_PROJECT_ID": "<project_id>",
+        "DBT_ENVIRONMENT_ID": "<production_environment_id>"
       }
     }
   }
@@ -549,21 +607,21 @@ Create `.mcp.json` at the project root with the token hardcoded (file is gitigno
 
 ## Phase 9 — Done
 
-Summarize what was created:
-- 📁 dbt project scaffold (models, sources, Semantic Layer YAMLs)
+Summarise what was created:
+- 📁 dbt project scaffold (models, seeds, sources, Semantic Layer YAMLs)
 - ⚙️ Terraform resources applied (project, environments, jobs, Semantic Layer)
 - 🔌 `.mcp.json` configured with dbt Cloud MCP
 
-Remind the user:
-- ⚠️ `dbtcloud_semantic_layer_configuration` requires a successful job run in Production. Trigger "Daily Build (Production)" manually in dbt Cloud to complete the Semantic Layer setup.
+Reminders:
+- ⚠️ Semantic Layer requires a successful Production job run. Trigger "Daily Build (Production)" manually in dbt Cloud, then re-run `terraform apply`.
 - 🔁 Restart Claude Code (`claude --continue` or reopen) to load the new MCP server.
 
 ---
 
 ## Notes
 
-- `dbtcloud_semantic_layer_configuration` fails if no successful run exists in the target environment — re-run `terraform apply` after triggering the job.
-- `dbt_version` drift: provider may show benign updates from `versionless` to `latest` — safe to ignore.
-- Provider v1.8+ required for Semantic Layer resources.
-- `github_installation_id` for the `novarz` org is `103071669`.
-- Sensitive files are gitignored: `.mcp.json`, `dbt-project.yaml`, `terraform/terraform.tfstate`.
+- Provider v1.8+ required for all Semantic Layer resources.
+- `dbt_version` drift (`versionless` → `latest`) is benign, safe to ignore.
+- `github_installation_id` is per GitHub org, not per project.
+- For BigQuery: always fetch current provider docs before generating the connection block — field names differ from the Snowflake block.
+- Sensitive files gitignored: `.mcp.json`, `dbt-project.yaml`, `terraform/terraform.tfstate`.
