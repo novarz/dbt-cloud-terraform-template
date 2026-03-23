@@ -479,6 +479,7 @@ resource "dbtcloud_global_connection" "this" {
   bigquery = {
     gcp_project_id         = var.bq_project_id
     location               = var.bq_location
+    use_latest_adapter     = true                 # bigquery_v1 — supports WIF, recommended for new projects
     # auth fields come from the service account JSON:
     auth_type              = "service_account"
     client_email           = jsondecode(var.bq_service_account_json).client_email
@@ -516,6 +517,7 @@ resource "dbtcloud_bigquery_credential" "production" {
 # ─── Semantic Layer ───────────────────────────────────────────────────────────
 
 # Use dbtcloud_bigquery_semantic_layer_credential instead of snowflake variant.
+# Set adapter_version = "bigquery_v1" to match use_latest_adapter = true on the connection.
 # Retrieve exact block schema from provider docs before writing.
 ```
 
