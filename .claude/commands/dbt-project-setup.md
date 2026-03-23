@@ -144,11 +144,13 @@ Use the current directory name as the repo name — do not ask.
 
 ### Step 2 — Create repo and push
 
+> ⚠️ **This step MUST happen before Terraform.** dbt Cloud needs the repo to exist and have at least one commit on main so that jobs can run against the code. Terraform will also link the project to this repo.
+
 ```bash
 gh repo create {owner}/{directory_name} --private   # or --public
 git init
 git add .
-git commit -m "chore: initial commit"
+git commit -m "chore: initial dbt project scaffold"
 git remote add origin git@github.com:{owner}/{directory_name}.git
 git push -u origin main
 ```
@@ -563,6 +565,8 @@ terraform/.terraform.lock.hcl
 
 ## Phase 7 — Run Terraform
 
+> ⚠️ Only run this after Phase 3 (code committed to main). Terraform links dbt Cloud to the repo and creates jobs that need existing code to run.
+
 **Snowflake:**
 ```bash
 export TF_VAR_dbt_token="..."
@@ -581,6 +585,40 @@ cd terraform && terraform init && terraform apply -auto-approve
 ```
 
 Capture: `project_id`, `production_environment_id`, `staging_environment_id`.
+
+> **Expected:** `dbtcloud_semantic_layer_configuration` will fail with "No successful runs found" — this is normal. Continue to Phase 7b.
+
+---
+
+## Phase 7b — Activate the Semantic Layer
+
+The Semantic Layer requires at least one successful job run in the Production environment. Do this automatically:
+
+### Step 1 — Trigger the Production job
+
+Get the job ID from terraform state:
+```bash
+terraform state show dbtcloud_job.daily_prod | grep "^ *id "
+```
+
+Trigger it using the dbt MCP tool `mcp__dbt__trigger_job_run` with:
+- `job_id`: the ID from above
+- `cause`: "Initial run to activate Semantic Layer"
+
+### Step 2 — Wait for completion
+
+Poll using `mcp__dbt__get_job_run_details` with the run ID returned. Check `is_complete` and `is_success`.
+
+- If `is_success = true` → proceed to Step 3
+- If `is_cancelled` or `is_error` → report the `status_message` to the user and stop. Common causes: missing BigQuery permissions (`BigQuery Data Editor` + `BigQuery Job User` roles on the service account), BigQuery API not enabled in GCP, or Snowflake credentials wrong.
+
+### Step 3 — Re-run terraform apply
+
+```bash
+cd terraform && terraform apply -auto-approve
+```
+
+This will now create `dbtcloud_semantic_layer_configuration` successfully.
 
 ---
 
@@ -619,7 +657,6 @@ Summarise what was created:
 - 🔌 `.mcp.json` configured with dbt Cloud MCP
 
 Reminders:
-- ⚠️ Semantic Layer requires a successful Production job run. Trigger "Daily Build (Production)" manually in dbt Cloud, then re-run `terraform apply`.
 - 🔁 Restart Claude Code (`claude --continue` or reopen) to load the new MCP server.
 
 ---
