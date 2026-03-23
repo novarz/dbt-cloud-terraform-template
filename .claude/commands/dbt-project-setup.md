@@ -161,11 +161,18 @@ Set `git_remote_url = "git@github.com:{owner}/{directory_name}.git"` for Terrafo
 
 Check if `dbt-project.yaml` exists → read from it automatically. Otherwise ask interactively.
 
+**First question — always ask this explicitly, even in config file mode if not present:**
+
+> "What is the name of your dbt Cloud project?"
+
+Use this as `project_name` throughout all Terraform resources and the service token name.
+
 ### Common parameters (always required)
 
 #### dbt Cloud
 | Variable | Description | Example |
 |---|---|---|
+| `project_name` | dbt Cloud project name | `diverger_fusion_banking` |
 | `dbt_account_id` | dbt Cloud account ID | `530` |
 | `dbt_host_url` | API host URL (with `/api`) | `https://pk455.eu1.dbt.com/api` |
 | `dbt_token` | Account Admin service token (**sensitive**) | `dbtc_...` |
@@ -173,7 +180,6 @@ Check if `dbt-project.yaml` exists → read from it automatically. Otherwise ask
 #### Project
 | Variable | Description | Example |
 |---|---|---|
-| `project_name` | dbt Cloud project name | `my_project` |
 | `dbt_version` | dbt version | `versionless` |
 
 #### Auto-discover `github_installation_id`
@@ -370,7 +376,7 @@ resource "dbtcloud_job" "daily" {
   project_id     = dbtcloud_project.this.id
   environment_id = dbtcloud_environment.staging.environment_id
   name           = "Daily Build"
-  execute_steps  = ["dbt deps", "dbt build", "dbt docs generate"]
+  execute_steps  = ["dbt build"]
   dbt_version    = var.dbt_version
   generate_docs  = true
   schedule_type  = "every_day"
@@ -384,7 +390,7 @@ resource "dbtcloud_job" "daily_prod" {
   project_id     = dbtcloud_project.this.id
   environment_id = dbtcloud_environment.production.environment_id
   name           = "Daily Build (Production)"
-  execute_steps  = ["dbt deps", "dbt build", "dbt docs generate"]
+  execute_steps  = ["dbt build"]
   dbt_version    = var.dbt_version
   generate_docs  = true
   schedule_type  = "every_day"
@@ -398,7 +404,7 @@ resource "dbtcloud_job" "slim_ci" {
   project_id               = dbtcloud_project.this.id
   environment_id           = dbtcloud_environment.staging.environment_id
   name                     = "Slim CI"
-  execute_steps            = ["dbt deps", "dbt build --select state:modified+ --defer --state ./artifacts"]
+  execute_steps            = ["dbt build --select state:modified+ --defer --state ./artifacts"]
   dbt_version              = var.dbt_version
   deferring_environment_id = dbtcloud_environment.staging.environment_id
   run_compare_changes      = true
@@ -625,3 +631,4 @@ Reminders:
 - `github_installation_id` is per GitHub org, not per project.
 - For BigQuery: always fetch current provider docs before generating the connection block — field names differ from the Snowflake block.
 - Sensitive files gitignored: `.mcp.json`, `dbt-project.yaml`, `terraform/terraform.tfstate`.
+- **`dbt deps` is NOT a valid execute_step in dbt Cloud jobs** — dbt Cloud runs `dbt deps` automatically before any job. Never include it in `execute_steps`.
